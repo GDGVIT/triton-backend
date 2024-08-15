@@ -96,8 +96,7 @@ func (p *PastebinHandler) GetPastebin(c *gin.Context) {
 	}
 
 	q := database.New(p.db)
-	pastebin, err :=
-		q.GetPastebin(c, input.URL)
+	pastebin, err := q.GetPastebin(c, input.URL)
 	if errors.Is(err, pgx.ErrNoRows) {
 		merrors.NotFound(c, "This page does not exist!")
 		return
