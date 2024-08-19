@@ -15,12 +15,39 @@ func (s *Server) RegisterRoutes() http.Handler {
 	r.Use(CORSMiddleware())
 
 	r.GET("/", s.HelloWorldHandler)
-
 	r.GET("/health", s.healthHandler)
 
 	v1 := r.Group("/v1")
+	v1.Use(s.authenticate())
 	v1.POST("/pastebin/create", s.PastebinHandler.CreatePastebin)
 	v1.GET("/pastebin/:url", s.PastebinHandler.GetPastebin)
+
+	authGroup := v1.Group("/auth")
+	{
+		// OAuth Login
+		authGroup.GET("/login/oauth", s.AuthHandler.GoogleLoginHandler)
+
+		// OAuth Callback
+		authGroup.GET("/callback/oauth", s.AuthHandler.GoogleCallbackHandler)
+
+		// Register User via OAuth
+		authGroup.POST("/register/oauth", s.AuthHandler.RegisterOAuthUser)
+
+		// Register User Anonymously
+		authGroup.POST("/register/anonymous", s.AuthHandler.RegisterAnonymousUser)
+
+		// Get User by OAuth ID
+		authGroup.POST("/get/oauth", s.AuthHandler.GetUserByOAuthID)
+
+		// Get User by Anonymous ID
+		authGroup.POST("/get/anonymous", s.AuthHandler.GetUserByAnonymousID)
+
+		// Logout
+		authGroup.POST("/logout", s.AuthHandler.LogoutHandler) // Needs implementation
+
+		// Refresh OAuth Token
+		// authGroup.POST("/token/refresh", s.AuthHandler.RefreshTokenHandler) // Needs implementation
+	}
 
 	return r
 }
@@ -44,26 +71,11 @@ func (s *Server) healthHandler(c *gin.Context) {
 		stats["error"] = fmt.Sprintf("db down: %v", err)
 		log.Fatalf(fmt.Sprintf("db down: %v", err)) // Log the error and terminate the program
 		c.JSON(http.StatusInternalServerError, stats)
+		return
 	}
 
 	// Database is up, add more statistics
 	stats["status"] = "up"
 	stats["message"] = "It's healthy"
 	c.JSON(http.StatusOK, stats)
-}
-
-func CORSMiddleware() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
-		c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")
-		c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, accept, origin, Cache-Control, X-Requested-With")
-		c.Writer.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS, GET, PUT")
-
-		if c.Request.Method == "OPTIONS" {
-			c.AbortWithStatus(204)
-			return
-		}
-
-		c.Next()
-	}
 }

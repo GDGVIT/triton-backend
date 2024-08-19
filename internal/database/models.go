@@ -18,7 +18,23 @@ type Pastebin struct {
 	Extension string             `json:"extension"`
 }
 
+type Token struct {
+	ID        int32              `json:"id"`
+	Hash      []byte             `json:"hash"`
+	UserUuid  uuid.UUID          `json:"user_uuid"`
+	Expiry    pgtype.Timestamptz `json:"expiry"`
+	Scope     string             `json:"scope"`
+	CreatedAt pgtype.Timestamptz `json:"created_at"`
+}
+
 type Url struct {
 	UrlUuid uuid.UUID   `json:"url_uuid"`
 	UrlName interface{} `json:"url_name"`
+}
+
+type User struct {
+	Uuid      uuid.UUID          `json:"uuid"`
+	CreatedAt pgtype.Timestamptz `json:"created_at"`
+	AuthType  string             `json:"auth_type"`
+	OauthID   string             `json:"oauth_id"`
 }

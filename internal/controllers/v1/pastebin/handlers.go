@@ -3,13 +3,13 @@ package pastebin
 import (
 	"errors"
 	"net/http"
+	"triton-backend/internal/controllers/v1/auth"
 	"triton-backend/internal/database"
 	"triton-backend/internal/merrors"
 	"triton-backend/internal/utils"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/binding"
-	"github.com/google/uuid"
 	"github.com/jackc/pgerrcode"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
@@ -28,16 +28,22 @@ func Handler(db *pgxpool.Pool) *PastebinHandler {
 
 func (p *PastebinHandler) CreatePastebin(c *gin.Context) {
 	var input struct {
-		UserUUID  uuid.UUID `json:"user_uuid" binding:"required,uuid"`
-		Title     string    `json:"title" binding:"required"`
-		Content   string    `json:"content" binding:"required"`
-		Extension string    `json:"extension" binding:"required"`
-		URL       string    `json:"url" binding:"required"`
+		Title     string `json:"title" binding:"required"`
+		Content   string `json:"content" binding:"required"`
+		Extension string `json:"extension" binding:"required"`
+		URL       string `json:"url" binding:"required"`
 	}
 	binding.EnableDecoderDisallowUnknownFields = true
 	err := c.ShouldBindJSON(&input)
 	if err != nil {
 		merrors.Validation(c, err.Error())
+		return
+	}
+
+	u, _ := c.Get("user")
+	user, _ := u.(*database.GetUserByTokenRow)
+	if user == auth.AnonymousUser {
+		merrors.Unauthorized(c, "You are not logged in")
 		return
 	}
 
@@ -60,7 +66,7 @@ func (p *PastebinHandler) CreatePastebin(c *gin.Context) {
 	}
 
 	pastebin, err := qtx.CreatePastebin(c, database.CreatePastebinParams{
-		UserUuid:  input.UserUUID,
+		UserUuid:  user.Uuid,
 		Title:     input.Title,
 		Content:   input.Content,
 		UrlUuid:   url_uuid,
@@ -105,10 +111,19 @@ func (p *PastebinHandler) GetPastebin(c *gin.Context) {
 		return
 	}
 
+	owner := false
+	u, _ := c.Get("user")
+	user, _ := u.(*database.GetUserByTokenRow)
+	if user == auth.AnonymousUser {
+		owner = false
+	} else if pastebin.UserUuid == user.Uuid {
+		owner = true
+	}
+
 	c.JSON(http.StatusOK, utils.BaseResponse{
 		Success:    true,
 		Message:    "Pastebin successfully retrieved",
-		Data:       pastebin,
+		Data:       gin.H{"pastebin": pastebin, "owner": owner},
 		StatusCode: http.StatusOK,
 	})
 

@@ -46,7 +46,7 @@ func (q *Queries) CreatePastebin(ctx context.Context, arg CreatePastebinParams) 
 }
 
 const getPastebin = `-- name: GetPastebin :one
-SELECT p.title, p.content, p.extension
+SELECT p.user_uuid, p.title, p.content, p.extension
 FROM pastebin p
 INNER JOIN url u
 ON p.url_uuid = u.url_uuid
@@ -54,14 +54,20 @@ WHERE u.url_name = $1::text
 `
 
 type GetPastebinRow struct {
-	Title     string `json:"title"`
-	Content   string `json:"content"`
-	Extension string `json:"extension"`
+	UserUuid  uuid.UUID `json:"user_uuid"`
+	Title     string    `json:"title"`
+	Content   string    `json:"content"`
+	Extension string    `json:"extension"`
 }
 
 func (q *Queries) GetPastebin(ctx context.Context, url string) (GetPastebinRow, error) {
 	row := q.db.QueryRow(ctx, getPastebin, url)
 	var i GetPastebinRow
-	err := row.Scan(&i.Title, &i.Content, &i.Extension)
+	err := row.Scan(
+		&i.UserUuid,
+		&i.Title,
+		&i.Content,
+		&i.Extension,
+	)
 	return i, err
 }

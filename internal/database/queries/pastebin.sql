@@ -4,7 +4,7 @@ VALUES (@user_uuid, @title, @content, @url_uuid, @extension)
 RETURNING *;
 
 -- name: GetPastebin :one
-SELECT p.title, p.content, p.extension
+SELECT p.user_uuid, p.title, p.content, p.extension
 FROM pastebin p
 INNER JOIN url u
 ON p.url_uuid = u.url_uuid
