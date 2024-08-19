@@ -6,6 +6,7 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"time"
 	"triton-backend/internal/database"
@@ -27,6 +28,7 @@ type AuthHandler struct {
 	db                *pgxpool.Pool
 	googleOauthConfig *oauth2.Config
 	oauthStateString  string
+	frontendCallback  string
 }
 
 func Handler(db *pgxpool.Pool) *AuthHandler {
@@ -40,6 +42,7 @@ func Handler(db *pgxpool.Pool) *AuthHandler {
 			Endpoint:     google.Endpoint,
 		},
 		oauthStateString: "random_state_string", // Ideally, generate dynamically
+		frontendCallback: os.Getenv("FRONTEND_CALLBACK_URL"),
 	}
 }
 
@@ -147,12 +150,18 @@ func (a *AuthHandler) GoogleCallbackHandler(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, utils.BaseResponse{
-		Success:    true,
-		Message:    "OAuth user successfully authenticated",
-		Data:       tok,
-		StatusCode: http.StatusOK,
-	})
+	queryVal := url.Values{
+		"token": {tok.Plaintext},
+	}
+	reqUrl := a.frontendCallback + "?" + queryVal.Encode()
+	c.Redirect(http.StatusTemporaryRedirect, reqUrl)
+
+	// c.JSON(http.StatusOK, utils.BaseResponse{
+	// 	Success:    true,
+	// 	Message:    "OAuth user successfully authenticated",
+	// 	Data:       tok,
+	// 	StatusCode: http.StatusOK,
+	// })
 }
 
 func (a *AuthHandler) RegisterOAuthUser(c *gin.Context) {
